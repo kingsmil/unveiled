@@ -1,23 +1,51 @@
 
-import React, { useState } from "react";
-
+import React, { useState, } from "react";
+import {Toast} from "next/dist/client/components/react-dev-overlay/internal/components/Toast";
 export default function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [input, setInput] = useState("");
-    const [response, setResponse] = useState<String>("");
+    const [output, setOutput] = useState<String>("");
     const [numWords,setNumWords] = useState("200")
-    const prompt = `Q: ${input} ,Using the context of the current conversation,
-     generate intimate questions that aim to foster vulnerability, bonding,
+
+
+
+    const whisperRequest = async (audioFile: Blob) => {
+        setLoading(true);
+        const formData = new FormData();
+        formData.append('file', audioFile, 'audio.wav');
+        try {
+            const response = await fetch('/api/whisper', {
+                method: 'POST',
+                body: formData,
+            });
+            const { text, error } = await response.json();
+            if (response.ok) {
+                setInput(text);
+            } else {
+                setLoading(false)
+            }
+        } catch (error) {
+            console.log({ error });
+            setLoading(false);
+            if (typeof error === 'string') {
+                setInput(error);
+            }
+            if (error instanceof Error) {
+                setInput(error.message);
+            }
+            console.log('Error:', error);
+        }
+    };
+    const generateResponse = async (e: React.MouseEvent<HTMLButtonElement>,currentIntensity : String) => {
+        e.preventDefault();
+        setOutput("");
+        setLoading(true);
+        const prompt = `${input} ,Using the context of the current conversation,
+     generate ONE intimate question that aim to foster vulnerability, bonding,
      and connection between the participants. Ensure that the questions are thought-provoking,
      encourage self-reflection, and promote deeper understanding of each other's emotions, values, 
-     and experiences. Keep it to one question.`;
-
-
-    const generateResponse = async (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-        setResponse("");
-        setLoading(true);
-
+     and experiences. ${currentIntensity} ${output}`;
+        //alert(prompt);
         const response = await fetch("/api/generate/routes", {
             method: "POST",
             headers: {
@@ -47,7 +75,7 @@ export default function Dashboard() {
             const { value, done: doneReading } = await reader.read();
             done = doneReading;
             const chunkValue = decoder.decode(value);
-            setResponse((prev) => prev + chunkValue);
+            setOutput((prev) => prev + chunkValue);
         }
         setLoading(false);
     };
@@ -91,11 +119,12 @@ export default function Dashboard() {
                             />
                         </div>
                     </form>
+
                 </div>
                 {!loading ? (
                     <button
-                        className="w-full rounded-xl bg-neutral-900 px-4 py-2 font-medium text-white hover:bg-black/80"
-                        onClick={(e) => generateResponse(e)}
+                        className="w-full rounded-xl bg-neutral-900 px-4 py-4 font-medium text-white hover:bg-black/80"
+                        onClick={(e) => generateResponse(e,"")}
                     >
                         Generate Question &rarr;
                     </button>
@@ -107,10 +136,31 @@ export default function Dashboard() {
                         <div className="animate-pulse font-bold tracking-widest">...</div>
                     </button>
                 )}
-                {response && (
-                    <div className=" rounded-xl border bg-yellow-600 p-4 shadow-md transition hover:bg-yellow-500">
-                        {response}
-                    </div>
+
+                {output && (
+                    <div className="flex flex-col rounded-xl border bg-yellow-600 p-4 shadow-md transition hover:bg-yellow-500">
+                            {output}
+                            <div className={"flex columns-2 my-5"}>
+                                <button
+                                    className="flex-col w-full mx-5 rounded-xl bg-neutral-900 px-2 py-4 font-medium text-white hover:bg-black/80"
+                                    onClick={(e) => generateResponse(e,"Lower Intensity than:")}
+                                >
+                                    Lower Intensity &rarr;
+                                </button>
+                                <button
+                                    className="flex-col w-full mx-5 rounded-xl bg-neutral-900 px-2 py-4 font-medium text-white hover:bg-black/80"
+                                    onClick={(e) => generateResponse(e,"Similar Intensity than:")}
+                                >
+                                    Similar Intensity &rarr;
+                                </button>
+                                <button
+                                    className="flex-col w-full mx-5 rounded-xl bg-neutral-900 px-2 py-4 font-medium text-white hover:bg-black/80"
+                                    onClick={(e) => generateResponse(e,"Higher Intensity than:")}
+                                >
+                                    Higher Intensity &rarr;
+                                </button>
+                            </div>
+                        </div>
                 )}
             </div>
         </div>
